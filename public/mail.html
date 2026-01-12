@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Realtime Mail</title>
+
+<style>
+body{margin:0;font-family:sans-serif;background:#f1f3f4}
+header{background:#1a73e8;color:#fff;padding:10px;font-size:20px}
+#container{display:flex;height:calc(100vh - 50px)}
+#sidebar{width:200px;background:#fff;border-right:1px solid #ccc}
+#sidebar button{width:100%;padding:10px;border:none;background:#fff}
+#sidebar button:hover{background:#e8f0fe}
+#main{flex:1;padding:10px}
+.mail{border-bottom:1px solid #ccc;padding:8px;cursor:pointer}
+.mail:hover{background:#e8f0fe}
+input,textarea{width:100%;margin-bottom:5px;padding:5px}
+textarea{height:120px}
+.hidden{display:none}
+</style>
+</head>
+
+<body>
+
+<header>📡 Realtime Mail</header>
+
+<div id="container">
+  <div id="sidebar">
+    <button onclick="showInbox()">📥 受信箱</button>
+    <button onclick="showCompose()">✉ 新規作成</button>
+  </div>
+
+  <div id="main">
+    <div id="inbox"></div>
+
+    <div id="compose" class="hidden">
+      <input id="from" placeholder="送信者名">
+      <input id="subject" placeholder="件名">
+      <textarea id="body" placeholder="本文"></textarea>
+      <button onclick="sendMail()">送信</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let mails = [];
+
+socket.on("init", data => {
+  mails = data;
+  showInbox();
+});
+
+socket.on("newMail", mail => {
+  mails.unshift(mail);
+  showInbox();
+});
+
+function showInbox(){
+  document.getElementById("compose").classList.add("hidden");
+  const inbox = document.getElementById("inbox");
+  inbox.innerHTML = "<h2>受信箱</h2>";
+
+  if(mails.length === 0){
+    inbox.innerHTML += "<p>メールなし</p>";
+    return;
+  }
+
+  mails.forEach((m,i)=>{
+    const d=document.createElement("div");
+    d.className="mail";
+    d.innerHTML=`<b>${m.subject}</b><br>${m.from} - ${m.date}`;
+    d.onclick=()=>openMail(i);
+    inbox.appendChild(d);
+  });
+}
+
+function showCompose(){
+  document.getElementById("inbox").innerHTML="";
+  document.getElementById("compose").classList.remove("hidden");
+}
+
+function sendMail(){
+  const mail={
+    from:from.value||"匿名",
+    subject:subject.value||"(無題)",
+    body:body.value,
+    date:new Date().toLocaleString()
+  };
+  socket.emit("sendMail", mail);
+  showInbox();
+}
+
+function openMail(i){
+  const m=mails[i];
+  inbox.innerHTML=`
+    <h2>${m.subject}</h2>
+    <p><b>From:</b> ${m.from}</p>
+    <p><b>Date:</b> ${m.date}</p>
+    <hr>
+    <pre>${m.body}</pre>
+    <button onclick="showInbox()">戻る</button>
+  `;
+}
+</script>
+
+</body>
+</html>
