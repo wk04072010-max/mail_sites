@@ -42,68 +42,57 @@ textarea{height:120px}
   </div>
 </div>
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-const socket = io();
-let mails = [];
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  onChildAdded
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-socket.on("init", data => {
-  mails = data;
-  showInbox();
-});
+/* Firebase設定（あなたのもの） */
+const firebaseConfig = {
+  apiKey: "AIzaSyDpnRnfaTpJyZqOofYYVgXc78-EDmItIp4",
+  authDomain: "mail-html-b1e3d.firebaseapp.com",
+  databaseURL: "https://mail-html-b1e3d-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "mail-html-b1e3d",
+  storageBucket: "mail-html-b1e3d.firebasestorage.app",
+  messagingSenderId: "589415071537",
+  appId: "1:589415071537:web:97c5e1c7240ccaba9efa10"
+};
 
-socket.on("newMail", mail => {
-  mails.unshift(mail);
-  showInbox();
-});
+/* 初期化 */
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-function showInbox(){
-  document.getElementById("compose").classList.add("hidden");
-  const inbox = document.getElementById("inbox");
-  inbox.innerHTML = "<h2>受信箱</h2>";
+/* メール保存場所 */
+const mailRef = ref(db, "mails");
 
-  if(mails.length === 0){
-    inbox.innerHTML += "<p>メールなし</p>";
-    return;
-  }
+/* 送信処理 */
+window.send = () => {
+  const user = document.getElementById("user").value;
+  const text = document.getElementById("text").value;
+  if (!user || !text) return;
 
-  mails.forEach((m,i)=>{
-    const d=document.createElement("div");
-    d.className="mail";
-    d.innerHTML=`<b>${m.subject}</b><br>${m.from} - ${m.date}`;
-    d.onclick=()=>openMail(i);
-    inbox.appendChild(d);
+  push(mailRef, {
+    user: user,
+    text: text,
+    time: Date.now()
   });
-}
 
-function showCompose(){
-  document.getElementById("inbox").innerHTML="";
-  document.getElementById("compose").classList.remove("hidden");
-}
+  document.getElementById("text").value = "";
+};
 
-function sendMail(){
-  const mail={
-    from:from.value||"匿名",
-    subject:subject.value||"(無題)",
-    body:body.value,
-    date:new Date().toLocaleString()
-  };
-  socket.emit("sendMail", mail);
-  showInbox();
-}
+/* リアルタイム受信 */
+const box = document.getElementById("messages");
 
-function openMail(i){
-  const m=mails[i];
-  inbox.innerHTML=`
-    <h2>${m.subject}</h2>
-    <p><b>From:</b> ${m.from}</p>
-    <p><b>Date:</b> ${m.date}</p>
-    <hr>
-    <pre>${m.body}</pre>
-    <button onclick="showInbox()">戻る</button>
-  `;
-}
+onChildAdded(mailRef, (snapshot) => {
+  const data = snapshot.val();
+  const div = document.createElement("div");
+  div.textContent = `${data.user}: ${data.text}`;
+  box.prepend(div);
+});
 </script>
-
 </body>
 </html>
